@@ -8,11 +8,11 @@ pub struct BTNode<T: PartialOrd + Copy, U> {
     value: U,
     left: Option<Box<BTNode<T, U>>>,
     right: Option<Box<BTNode<T, U>>>,
-    n: i32,
+    n: usize,
 }
 
 impl<T: PartialOrd + Copy, U: Clone> BTNode<T, U> {
-    fn new(key: T, value: U, n: i32) -> BTNode<T, U> {
+    fn new(key: T, value: U, n: usize) -> BTNode<T, U> {
         BTNode {
             key,
             value,
@@ -35,7 +35,7 @@ impl<T: PartialOrd + Copy, U: Clone> BinarySearchTree<T, U> {
     /// # //tree.put(2, "2");
     /// assert_eq!(tree.size(), 0);
     /// ```
-    pub fn size(&self) -> i32 {
+    pub fn size(&self) -> usize {
         if let Some(ref root) = self.root {
             root.n
         } else {
@@ -53,15 +53,15 @@ impl<T: PartialOrd + Copy, U: Clone> BinarySearchTree<T, U> {
     /// assert_eq!(tree.get(""), None);
     /// ```
     pub fn get(&self, key: T) -> Option<U> {
-        BinarySearchTree::get_internal(&self.root, key)
+        Self::get_internal(&self.root, key)
     }
 
     fn get_internal(node: &Option<Box<BTNode<T, U>>>, key: T) -> Option<U> {
         if let Some(ref node) = node {
             if node.key > key {
-                BinarySearchTree::get_internal(&node.left, key)
+                Self::get_internal(&node.left, key)
             } else if node.key < key {
-                BinarySearchTree::get_internal(&node.right, key)
+                Self::get_internal(&node.right, key)
             } else {
                 Some(node.value.clone())
             }
@@ -84,14 +84,12 @@ impl<T: PartialOrd + Copy, U: Clone> BinarySearchTree<T, U> {
             } else {
                 node.value = val;
             }
-            node.n = BinarySearchTree::node_size(&node.left)
-                + BinarySearchTree::node_size(&node.right)
-                + 1;
+            node.n = Self::node_size(node.left.as_ref()) + Self::node_size(node.right.as_ref()) + 1;
         } else {
             *node = Some(Box::new(BTNode::new(key, val, 1)));
         }
     }
-    fn node_size(node: &Option<Box<BTNode<T, U>>>) -> i32 {
+    fn node_size(node: Option<&Box<BTNode<T, U>>>) -> usize {
         if let Some(node) = node {
             node.n
         } else {
@@ -110,32 +108,32 @@ impl<T: PartialOrd + Copy, U: Clone> BinarySearchTree<T, U> {
     pub fn min(&self) -> Option<T> {
         match &self.root {
             None => None,
-            Some(node) => Some(BinarySearchTree::min_internal(node).key),
+            Some(node) => Some(Self::min_internal(node).key),
         }
     }
 
     fn min_internal(node: &Box<BTNode<T, U>>) -> &Box<BTNode<T, U>> {
         match &node.left {
             None => node,
-            Some(left) => BinarySearchTree::min_internal(&left),
+            Some(left) => Self::min_internal(&left),
         }
     }
 
     /// Get the key of the floor node of `key`.
     pub fn floor(&self, key: T) -> Option<T> {
-        match BinarySearchTree::floor_internal(&self.root, key) {
+        match Self::floor_internal(self.root.as_ref(), key) {
             Some(boxed_node) => Some(boxed_node.key),
             None => None,
         }
     }
 
-    fn floor_internal(node: &Option<Box<BTNode<T, U>>>, key: T) -> &Option<Box<BTNode<T, U>>> {
+    fn floor_internal(node: Option<&Box<BTNode<T, U>>>, key: T) -> Option<&Box<BTNode<T, U>>> {
         match node {
             Some(box_node) => {
                 if key < box_node.key {
-                    BinarySearchTree::floor_internal(&box_node.left, key)
+                    Self::floor_internal(box_node.left.as_ref(), key)
                 } else if key > box_node.key {
-                    let t = BinarySearchTree::floor_internal(&box_node.right, key);
+                    let t = Self::floor_internal(box_node.right.as_ref(), key);
                     match t {
                         Some(_) => t,
                         None => node,
@@ -144,7 +142,52 @@ impl<T: PartialOrd + Copy, U: Clone> BinarySearchTree<T, U> {
                     node
                 }
             }
-            None => &None,
+            None => None,
+        }
+    }
+
+    /// Get the key of the node of rank `rank` (the key such that 
+    /// precisely *rank* other keys in the BST are smaller).
+    pub fn key_of_rank(&self, rank: usize) -> Option<T> {
+        match Self::select_internal(self.root.as_ref(), rank) {
+            Some(boxed_node) => Some(boxed_node.key),
+            None => None,
+        }
+    }
+
+    fn select_internal(node: Option<&Box<BTNode<T, U>>>, rank: usize) -> Option<&Box<BTNode<T, U>>> {
+        match node {
+            Some(box_node) => {
+                let t = Self::node_size(box_node.left.as_ref());
+                if t > rank { 
+                    Self::select_internal(box_node.left.as_ref(), rank)
+                } else if t < rank {
+                    Self::select_internal(box_node.right.as_ref(), rank-t-1)
+                } else {
+                    node
+                }
+            },
+            None => None
+        }
+    }
+
+    /// Inverse method of `key_of_rank()`.
+    pub fn rank_of_key(&self, key: T) -> usize {
+        return Self::rank_internal(self.root.as_ref(), key)
+    }
+
+    fn rank_internal(node: Option<&Box<BTNode<T, U>>>, key:T) -> usize {
+        match node {
+            Some(box_node) => {
+                if key < box_node.key {
+                    Self::rank_internal(box_node.left.as_ref(), key)
+                } else if key > box_node.key {
+                    1 + Self::node_size(box_node.left.as_ref()) + Self::rank_internal(box_node.right.as_ref(), key)
+                } else {
+                    Self::node_size(box_node.left.as_ref())
+                }
+            },
+            None => 0
         }
     }
 }
@@ -163,5 +206,7 @@ mod tests {
         assert_eq!(table.get(3), Some("3"));
         assert_eq!(table.get(1), None);
         assert_eq!(table.floor(1), None);
+        assert_eq!(table.key_of_rank(2), Some(4));
+        assert_eq!(table.rank_of_key(4), 2);
     }
 }
