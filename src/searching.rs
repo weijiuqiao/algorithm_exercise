@@ -212,6 +212,8 @@ impl<T: PartialOrd + Copy, U: Clone> BinarySearchTree<T, U> {
             None => 0,
         }
     }
+
+    /// Delete the node with minimal value.
     pub fn delete_min(&mut self) {
         self.root = Self::delete_min_internal(self.root.clone())
     }
@@ -233,22 +235,6 @@ impl<T: PartialOrd + Copy, U: Clone> BinarySearchTree<T, U> {
         }
     }
 
-    pub fn delete_min_internal2(
-        node: Rc<RefCell<Option<BTNode<T, U>>>>,
-    ) -> Rc<RefCell<Option<BTNode<T, U>>>> {
-        match *node.borrow_mut() {
-            Some(ref mut b_node) => {
-                if b_node.left.borrow().is_none() {
-                    b_node.right.clone()
-                } else {
-                    b_node.left = Self::delete_min_internal(b_node.left.clone());
-                    b_node.n = Self::node_size(&b_node.left) + Self::node_size(&b_node.right) + 1;
-                    node.clone()
-                }
-            }
-            None => node.clone(),
-        }
-    }
 }
 
 #[cfg(test)]
