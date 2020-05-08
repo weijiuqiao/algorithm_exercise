@@ -1,5 +1,5 @@
 mod sorting;
-mod searching;
+mod binary_search_tree;
 
 pub use self::sorting::Sorting;
-pub use self::searching::BinarySearchTree;
+pub use self::binary_search_tree::BinarySearchTree;

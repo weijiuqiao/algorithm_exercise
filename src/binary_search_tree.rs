@@ -166,7 +166,7 @@ impl<T: PartialOrd + Copy, U: Clone> BinarySearchTree<T, U> {
     }
 
     /// Get the key of the node of rank `rank` (the key such that
-    /// precisely *rank* other keys in the BST are smaller).
+    /// precisely *rank* number of other keys in the BST are smaller).
     pub fn key_of_rank(&self, rank: usize) -> Option<T> {
         Self::select_internal(self.root.clone(), rank)
             .borrow()
@@ -235,6 +235,44 @@ impl<T: PartialOrd + Copy, U: Clone> BinarySearchTree<T, U> {
         }
     }
 
+    /// Delete the node of `Key`.
+    pub fn delete(&mut self, key: T) {
+        self.root = Self::delete_internal(self.root.clone(), key);
+    }
+
+    fn delete_internal(node: Rc<RefCell<Option<BTNode<T,U>>>>, key: T) -> Rc<RefCell<Option<BTNode<T,U>>>>{
+        match *node.clone().borrow_mut() {
+            Some(ref mut b_node) => {
+                if key < b_node.key {
+                    b_node.left = Self::delete_internal(b_node.left.clone(), key);
+                } else if key > b_node.key {
+                    b_node.right = Self::delete_internal(b_node.right.clone(), key);
+                } else {
+                    if b_node.right.borrow().is_none() {
+                        return b_node.left.clone()
+                    }
+                    if b_node.left.borrow().is_none() {
+                        return b_node.right.clone()
+                    }
+                    let new_node = Self::min_internal(b_node.right.clone());
+                    let right = Self::delete_min_internal(b_node.right.clone());
+                    if let Some(ref mut x) = *new_node.borrow_mut() {
+                        x.right = right;
+                        x.left = b_node.left.clone();
+                        x.n = Self::node_size(&x.left) + Self::node_size(&x.right) + 1;
+                        return new_node.clone()
+                    } else {
+                        unreachable!()
+                    };
+
+                }
+                b_node.n = Self::node_size(&b_node.left) + Self::node_size(&b_node.right) + 1;
+                node
+            }
+            None => node
+        }
+    }
+
 }
 
 #[cfg(test)]
@@ -253,6 +291,11 @@ mod tests {
         assert_eq!(table.floor(5), Some(4));
         assert_eq!(table.key_of_rank(2), Some(4));
         assert_eq!(table.rank_of_key(4), 2);
-        table.delete_min();
+        // table.delete_min();
+        table.delete(3);
+        assert_eq!(table.size(), 2);
+        assert_eq!(table.get(3), None);
+        assert_eq!(table.floor(4), Some(4));
+        assert_eq!(table.floor(3), Some(2));
     }
 }
