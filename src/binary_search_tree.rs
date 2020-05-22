@@ -1,12 +1,14 @@
 use std::cell::RefCell;
+use std::fmt;
 use std::rc::Rc;
 
-pub struct BinarySearchTree<T: PartialOrd + Copy, U> {
+pub struct BinarySearchTree<T: PartialOrd + Copy + fmt::Debug, U: fmt::Debug> {
     root: Rc<RefCell<Option<BTNode<T, U>>>>,
 }
 
 /// Binary search tree node
-pub struct BTNode<T: PartialOrd + Copy, U> {
+#[derive(Debug)]
+struct BTNode<T: PartialOrd + Copy + fmt::Debug, U: fmt::Debug> {
     key: T,
     value: U,
     left: Rc<RefCell<Option<BTNode<T, U>>>>,
@@ -14,7 +16,7 @@ pub struct BTNode<T: PartialOrd + Copy, U> {
     n: usize,
 }
 
-impl<T: PartialOrd + Copy, U: Clone> BTNode<T, U> {
+impl<T: PartialOrd + Copy + fmt::Debug, U: Clone + fmt::Debug> BTNode<T, U> {
     fn new(key: T, value: U, n: usize) -> BTNode<T, U> {
         BTNode {
             key,
@@ -26,7 +28,7 @@ impl<T: PartialOrd + Copy, U: Clone> BTNode<T, U> {
     }
 }
 
-impl<T: PartialOrd + Copy, U: Clone> BinarySearchTree<T, U> {
+impl<T: PartialOrd + Copy + fmt::Debug, U: Clone + fmt::Debug> BinarySearchTree<T, U> {
     /// Initializer.
     pub fn new() -> Self {
         BinarySearchTree {
@@ -79,22 +81,28 @@ impl<T: PartialOrd + Copy, U: Clone> BinarySearchTree<T, U> {
 
     /// Insert key value pair into tree. If key already exists, update the corresponding value.
     pub fn put(&self, key: T, val: U) {
+        // println!("put {:?}:{:?}",key, val );
         BinarySearchTree::put_internal(&self.root, key, val);
     }
 
     fn put_internal(node: &Rc<RefCell<Option<BTNode<T, U>>>>, key: T, val: U) {
         let mut m = node.borrow_mut();
         if let Some(ref mut node) = *m {
+            // println!("some");
             // let mut ref_node = node.borrow_mut();
             if node.key > key {
+                // println!("smaller");
                 BinarySearchTree::put_internal(&node.left, key, val);
             } else if node.key < key {
+                // println!("bigger");
                 BinarySearchTree::put_internal(&node.right, key, val);
             } else {
+                // println!("same");
                 node.value = val;
             }
             node.n = Self::node_size(&node.left) + Self::node_size(&node.right) + 1;
         } else {
+            // println!("none");
             *m = Some(BTNode::new(key, val, 1));
         }
     }
@@ -107,13 +115,15 @@ impl<T: PartialOrd + Copy, U: Clone> BinarySearchTree<T, U> {
         }
     }
 
-    /// Get the key for minimal value.
+    /// Get the minimal key.
     /// ```
     /// # use algorithm_exercise::*;
     /// let mut tree = BinarySearchTree::new();
-    /// tree.put("two",2);
-    /// tree.put("one",1);
-    /// assert_eq!(tree.min(), Some("one"))
+    /// tree.put(2, "two");
+    /// tree.put(1, "one");
+    /// tree.put(4, "four");
+    /// tree.put(0, "zero");
+    /// assert_eq!(tree.min(), Some(0))
     /// ```
     pub fn min(&self) -> Option<T> {
         // match *Self::min_internal(self.root.clone()).borrow() {
@@ -127,6 +137,7 @@ impl<T: PartialOrd + Copy, U: Clone> BinarySearchTree<T, U> {
     }
 
     fn min_internal(node: Rc<RefCell<Option<BTNode<T, U>>>>) -> Rc<RefCell<Option<BTNode<T, U>>>> {
+        // println!("{:?}", node.borrow());
         match *node.borrow() {
             None => node.clone(),
             Some(ref b_node) => match *b_node.left.borrow() {
@@ -135,6 +146,34 @@ impl<T: PartialOrd + Copy, U: Clone> BinarySearchTree<T, U> {
             },
         }
     }
+
+    /// Get the maximum key.
+    /// ```
+    /// # use algorithm_exercise::*;
+    /// let mut tree = BinarySearchTree::new();
+    /// tree.put(2, "two");
+    /// tree.put(1, "one");
+    /// tree.put(4, "four");
+    /// tree.put(0, "zero");
+    /// assert_eq!(tree.max(), Some(4));
+    /// ```
+    pub fn max(&self) -> Option<T> {
+        Self::max_internal(self.root.clone())
+            .borrow()
+            .as_ref()
+            .map(|x| x.key)
+    }
+
+    fn max_internal(node: Rc<RefCell<Option<BTNode<T, U>>>>) -> Rc<RefCell<Option<BTNode<T, U>>>> {
+        match *node.borrow() {
+            None => node.clone(),
+            Some(ref b_node) => match *b_node.right.borrow() {
+                None => node.clone(),
+                Some(_) => Self::max_internal(b_node.right.clone()),
+            },
+        }
+    }
+
     /// Get the key of the floor node of `key`, i.e. the largest key in the BST less than or equal to `key`.
     pub fn floor(&self, key: T) -> Option<T> {
         Self::floor_internal(self.root.clone(), key) // Rc<RefCell<Option<Node>>>
@@ -240,7 +279,10 @@ impl<T: PartialOrd + Copy, U: Clone> BinarySearchTree<T, U> {
         self.root = Self::delete_internal(self.root.clone(), key);
     }
 
-    fn delete_internal(node: Rc<RefCell<Option<BTNode<T,U>>>>, key: T) -> Rc<RefCell<Option<BTNode<T,U>>>>{
+    fn delete_internal(
+        node: Rc<RefCell<Option<BTNode<T, U>>>>,
+        key: T,
+    ) -> Rc<RefCell<Option<BTNode<T, U>>>> {
         match *node.clone().borrow_mut() {
             Some(ref mut b_node) => {
                 if key < b_node.key {
@@ -249,10 +291,10 @@ impl<T: PartialOrd + Copy, U: Clone> BinarySearchTree<T, U> {
                     b_node.right = Self::delete_internal(b_node.right.clone(), key);
                 } else {
                     if b_node.right.borrow().is_none() {
-                        return b_node.left.clone()
+                        return b_node.left.clone();
                     }
                     if b_node.left.borrow().is_none() {
-                        return b_node.right.clone()
+                        return b_node.right.clone();
                     }
                     let new_node = Self::min_internal(b_node.right.clone());
                     let right = Self::delete_min_internal(b_node.right.clone());
@@ -260,19 +302,50 @@ impl<T: PartialOrd + Copy, U: Clone> BinarySearchTree<T, U> {
                         x.right = right;
                         x.left = b_node.left.clone();
                         x.n = Self::node_size(&x.left) + Self::node_size(&x.right) + 1;
-                        return new_node.clone()
+                        return new_node.clone();
                     } else {
                         unreachable!()
                     };
-
                 }
                 b_node.n = Self::node_size(&b_node.left) + Self::node_size(&b_node.right) + 1;
                 node
             }
-            None => node
+            None => node,
         }
     }
 
+    /// Get all keys of tree.
+    pub fn all_keys(&self) -> Vec<T> {
+        if let Some(min) = self.min() {
+            if let Some(max) = self.max() {
+                return Self::keys(&self, min, max);
+            }
+        }
+        vec![]
+    }
+    /// Get keys of tree within a range.
+    pub fn keys(&self, lo: T, hi: T) -> Vec<T> {
+        let mut vec: Vec<T> = vec![];
+        Self::keys_internal(&self.root, &mut vec, lo, hi);
+        vec
+    }
+
+    fn keys_internal(node: &Rc<RefCell<Option<BTNode<T, U>>>>, vec: &mut Vec<T>, lo: T, hi: T) {
+        match *node.borrow() {
+            None => return,
+            Some(ref b_node) => {
+                if lo < b_node.key {
+                    Self::keys_internal(&b_node.left, vec, lo, hi)
+                }
+                if lo <= b_node.key && hi >= b_node.key {
+                    vec.push(b_node.key)
+                }
+                if hi > b_node.key {
+                    Self::keys_internal(&b_node.right, vec, lo, hi)
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -297,5 +370,6 @@ mod tests {
         assert_eq!(table.get(3), None);
         assert_eq!(table.floor(4), Some(4));
         assert_eq!(table.floor(3), Some(2));
+        assert_eq!(table.all_keys(), vec![2, 4]);
     }
 }
